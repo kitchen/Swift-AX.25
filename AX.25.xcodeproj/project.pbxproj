@@ -35,6 +35,8 @@
 		7D326419229B33EB0091EA26 /* AX25FrameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AX25FrameTests.swift; sourceTree = "<group>"; };
 		7DC3EA2C229F8F75009FA094 /* CallSignSSID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallSignSSID.swift; sourceTree = "<group>"; };
 		7DC3EA30229F8FD3009FA094 /* CallSignSSIDTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallSignSSIDTests.swift; sourceTree = "<group>"; };
+		7DC3EA32229F94E2009FA094 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		7DC3EA33229F957D009FA094 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -59,6 +61,8 @@
 		7D3263F3229B338A0091EA26 = {
 			isa = PBXGroup;
 			children = (
+				7DC3EA32229F94E2009FA094 /* README.md */,
+				7DC3EA33229F957D009FA094 /* LICENSE */,
 				7D3263FF229B338A0091EA26 /* AX.25 */,
 				7D32640A229B338A0091EA26 /* AX.25Tests */,
 				7D3263FE229B338A0091EA26 /* Products */,

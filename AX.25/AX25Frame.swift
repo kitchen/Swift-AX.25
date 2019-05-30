@@ -98,14 +98,13 @@ public class AX25Frame {
             // the SSID subfield is CRRSSID0
             // C is the "command/response bit" ... or the H bit on repeater fields? Not entirely sure. Section 6.1.2 according to the docs
             // RR are reserved and implementation specific
-            // SSID is a UInt4
+            // SSID is a UInt4, but swift doesn't have that (natively, there is a pod, I might pull it in, we'll see)
             // address extension bit
             let ssid = (0b00011110 & frameData[6 + offset]) >> 1
             let hBit = (frameData[6+offset] & 0b10000000) == 0b10000000
             
             
             callSignFields.append(CallSignSSID(CallSign: callSign, SSID: ssid, H: hBit))
-            print("\(callSignFields.last!)")
             offset += 7
             
             // address extension bit is set to 1 on the last callsign field
@@ -125,9 +124,6 @@ public class AX25Frame {
         
         // control field
         let controlField = frameData[offset] // currently just modulo8. TODO: implement modulo128 support
-        // ideas: take a "hint" and fall back to the other if the hinted type fails to parse / pass FCS validation?
-        // or maybe that should be an exercise for the thing stuffing frames at us? 🤷‍♀️
-        print("offset: \(offset), controlField: \(controlField) frametype: \(controlField & 0b00000011)")
         
         if controlField & 0b01 == 0b00 {
             frameType = .I

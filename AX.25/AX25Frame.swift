@@ -19,12 +19,6 @@ public class AX25Frame {
         case parseControl
     }
     
-    public struct CallSignSSID {
-        let CallSign: String
-        let SSID: UInt8
-        let H: Bool
-    }
-    
     public enum FrameType {
         case I
         case S

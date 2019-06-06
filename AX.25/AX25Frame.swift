@@ -8,17 +8,7 @@
 
 import Foundation
 
-// TODO: I think this should be a Struct type. And so should KISS probably. That would probably make things easier.
-
-
 public class AX25Frame {
-    public enum AX25FrameError: Error {
-        case parseError
-        case parseFrameType
-        case parseCommand
-        case parseControl
-    }
-    
     public enum FrameType {
         case I
         case S
@@ -46,12 +36,15 @@ public class AX25Frame {
     
     public let toCall: CallSignSSID
     public let fromCall: CallSignSSID
-    public let repeaters: [CallSignSSID]
+    public var repeaters: [CallSignSSID] // all of the repeaters
+    public var repeatedBy: [CallSignSSID] // just the ones that have repeated
     
     public let frameType: FrameType
     // TODO: figure out how to make these required based on frame type. something something polymorphism?
     public var command: Command?
     public var control: Control?
+//    public let commandFrame: Bool
+//    public let responseFrame: Bool
     
     public var nextReceive: UInt8?
     public var nextSend: UInt8?
@@ -63,9 +56,9 @@ public class AX25Frame {
     
     public var information: Data?
     
-    public init(_ frameData: Data) throws {
+    public init?(_ frameData: Data) {
         guard frameData.count >= 15 else { // possibly not an ax25 frame? minimum frame size is 15 (without flag fields
-            throw AX25FrameError.parseError
+            return nil
         }
         var offset = 0
         let frameSize = frameData.count
@@ -79,41 +72,35 @@ public class AX25Frame {
         // ...
         // however, since we can tell when we've reached the end of the list, we'll slurp them all in. We'll worry about the 2 repeater limit when generating frames
         // and we don't really care about "time" since at this point we've already received the frame ;-)
-        var callSignFields: [CallSignSSID] = []
+        
+        var callSignFields: [CallSignField] = []
         while true {
             guard offset + 7 < frameSize else {
                 // we ran out of frame before we finished parsing
-                throw AX25FrameError.parseError
+                return nil
             }
-            // callsign is the first 6 bytes, left shifted by one bit ("to leave room for the address extension bit") encoded as 7-bit ASCII, only using A-Z 0-9
-            let callSignBytes = frameData.subdata(in: ((0+offset)..<(6 + offset)))
-            let callSign = String(bytes: callSignBytes.map({ $0 >> 1 }), encoding: String.Encoding.ascii)!.replacingOccurrences(of: " ", with: "")
             
-            // the SSID subfield is CRRSSID0
-            // C is the "command/response bit" ... or the H bit on repeater fields? Not entirely sure. Section 6.1.2 according to the docs
-            // RR are reserved and implementation specific
-            // SSID is a UInt4, but swift doesn't have that (natively, there is a pod, I might pull it in, we'll see)
-            // address extension bit
-            let ssid = (0b00011110 & frameData[6 + offset]) >> 1
-            let hBit = (frameData[6+offset] & 0b10000000) == 0b10000000
-            
-            
-            callSignFields.append(CallSignSSID(CallSign: callSign, SSID: ssid, H: hBit))
+            // TODO: de-static-ify this? or is that fine? Or should CallSignField just take this as an initializer
+            let callSignField = CallSignField(frameData.subdata(in: ((0+offset)..<(7 + offset))))
+            callSignFields.append(callSignField)
             offset += 7
-            
             // address extension bit is set to 1 on the last callsign field
-            if frameData[offset - 1] & 0x01 == 0x01 {
+            if callSignField.extensionBit {
                 break
             }
         }
         
-        toCall = callSignFields[0]
-        fromCall = callSignFields[1]
-        repeaters = Array(callSignFields.suffix(from: 2))
+        toCall = callSignFields[0].callSignSSID
+        fromCall = callSignFields[1].callSignSSID
+        
+        let repeaterFields = Array(callSignFields.suffix(from: 2))
+        repeaters = repeaterFields.map({ $0.callSignSSID })
+        repeatedBy = repeaterFields.filter({ $0.sevenBit }).map({ $0.callSignSSID })
+        
         
         guard offset < frameSize else {
             // we ran out of frame before we finished parsing
-            throw AX25FrameError.parseError
+            return nil
         }
         
         // control field
@@ -127,13 +114,13 @@ public class AX25Frame {
             frameType = .S
             nextReceive = 0b11100000 & controlField >> 5
             guard let tryCommand = Command.init(rawValue: (controlField & 0b00001100) >> 2) else {
-                throw AX25FrameError.parseCommand
+                return nil
             }
             command = tryCommand
         } else {
             frameType = .U
             guard let tryControl = Control.init(rawValue: (controlField & 0b11101100)) else {
-                throw AX25FrameError.parseControl
+                return nil
             }
             control = tryControl
         }
@@ -142,42 +129,43 @@ public class AX25Frame {
         
         offset += 1
         
-        // TODO: I, UI, XID, TEST, FRMR frames can all have information fields
-        if frameType == .I || (frameType == .U && control == .UI) {
-            // slurp up the rest of the frame for I and UI frames
-            
-            // make sure we at least have one byte left for the protocolId
+        switch (frameType, control) {
+        case (.I, _), (.U, .UI?):
             guard offset < frameData.count else {
-                throw AX25FrameError.parseError
+                return nil
             }
             protocolId = frameData[offset]
-            
-            // the rest of the frame is payload
             information = frameData.suffix(from: offset + 1)
-        } else if frameType == .U && control == .XID {
+        case (.U, .XID?):
             information = frameData.suffix(from: offset)
-            // TODO: further parse this into XID fields
-        } else if frameType == .U && control == .TEST {
+            // TODO: further parse this
+        case (.U, .TEST?):
             information = frameData.suffix(from: offset)
-        } else if frameType == .U && control == .FRMR {
+        case (.U, .FRMR?):
             information = frameData.suffix(from: offset)
-            
-            // spec says the information field is 3 octets
-            if let information = information {
-                guard information.count == 3 else {
-                    throw AX25FrameError.parseError
-                }
-            } else {
-                // honestly I don't see how this can not be Data
-                // .suffix is going to return Data (even if it's just empty) or it's going to explode because index error
-                // whatevs
-                throw AX25FrameError.parseError
+            guard let information = information else {
+                return nil
             }
-        } else {
-            // there shouldn't be anything left
+            guard information.count == 3 else {
+                return nil
+            }
+        default:
             guard offset == frameData.count else {
-                throw AX25FrameError.parseError
+                return nil
             }
         }
-    }    
+
+    }
+
+    private struct CallSignField {
+        let callSignSSID: CallSignSSID
+        let sevenBit: Bool
+        let extensionBit: Bool
+        
+        init(_ bytes: Data) {
+            callSignSSID = CallSignSSID(bytes)
+            sevenBit = (bytes[6] & 0b10000000 == 0b10000000)
+            extensionBit = (bytes[6] & 0b1 == 0b1)
+        }
+    }
 }

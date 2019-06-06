@@ -167,5 +167,16 @@ public class AX25Frame {
             sevenBit = (bytes[6] & 0b10000000 == 0b10000000)
             extensionBit = (bytes[6] & 0b1 == 0b1)
         }
+        
+        func field() -> Data {
+            var bytes = callSignSSID.field()
+            if sevenBit {
+                bytes[6] |= 0b10000000
+            }
+            if extensionBit {
+                bytes[6] |= 0b1
+            }
+            return bytes
+        }
     }
 }

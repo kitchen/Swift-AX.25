@@ -34,6 +34,10 @@ public class AX25Frame {
         case TEST  = 0b11100000
     }
     
+    public enum Modulo {
+        case Eight, OneTwentyEight
+    }
+    
     public let toCall: CallSignSSID
     public let fromCall: CallSignSSID
     public var repeaters: [CallSignSSID] // all of the repeaters
@@ -56,7 +60,7 @@ public class AX25Frame {
     
     public var information: Data?
     
-    public init?(_ frameData: Data) {
+    public init?(_ frameData: Data, modulo: Modulo = .Eight) {
         guard frameData.count >= 15 else { // possibly not an ax25 frame? minimum frame size is 15 (without flag fields
             return nil
         }
@@ -111,63 +115,168 @@ public class AX25Frame {
         repeatedBy = repeaterFields.filter({ $0.sevenBit }).map({ $0.callSignSSID })
         
         
-        guard offset < frameData.endIndex else {
-            // we ran out of frame before we finished parsing
+        
+        guard let frameTypeInfo = FrameTypeInfo(fromRaw: frameData.suffix(from: offset), modulo: modulo) else {
             return nil
         }
         
-        // control field
-        let controlField = frameData[offset] // currently just modulo8. TODO: implement modulo128 support
+        frameType = frameTypeInfo.frameType
+//        switch frameType {
+//        case .I:
+//            nextSend = frameTypeInfo.nextSend
+//            nextReceive = frameTypeInfo.nextReceive
+//        case .S:
+//            nextReceive =
+//        }
+//        if controlField & 0b01 == 0b00 {
+//            frameType = .I
+//            nextReceive = 0b11100000 & controlField >> 5
+//            nextSend =    0b00001110 & controlField >> 1
+//        } else if controlField & 0b11 == 0b01 {
+//            frameType = .S
+//            nextReceive = 0b11100000 & controlField >> 5
+//            guard let tryCommand = Command.init(rawValue: (controlField & 0b00001100) >> 2) else {
+//                return nil
+//            }
+//            command = tryCommand
+//        } else {
+//            frameType = .U
+//            guard let tryControl = Control.init(rawValue: (controlField & 0b11101100)) else {
+//                return nil
+//            }
+//            control = tryControl
+//        }
+//        
+//        pollFinal = (0b00010000 & controlField >> 4) == 0b00000001
+//        
+//        offset += 1
+//        
+//        switch (frameType, control) {
+//        case (.I, _), (.U, .UI?):
+//            guard offset < frameData.endIndex else {
+//                return nil
+//            }
+//            protocolId = frameData[offset]
+//            information = frameData.suffix(from: offset + 1)
+//        case (.U, .XID?):
+//            information = frameData.suffix(from: offset)
+//            // TODO: further parse this
+//        case (.U, .TEST?):
+//            information = frameData.suffix(from: offset)
+//        case (.U, .FRMR?):
+//            information = frameData.suffix(from: offset)
+//            guard let information = information else {
+//                return nil
+//            }
+//            guard information.count == 3 else {
+//                return nil
+//            }
+//        default:
+//            guard offset == frameData.endIndex else {
+//                return nil
+//            }
+//        }
+    }
+    
+    private struct FrameTypeInfo {
+        let frameType: FrameType
+        let remainder: Data
+        let control: Control?
+        let command: Command?
+        let nextSend: UInt8?
+        let nextReceive: UInt8?
+        let pollFinal: Bool
         
-        if controlField & 0b01 == 0b00 {
-            frameType = .I
-            nextReceive = 0b11100000 & controlField >> 5
-            nextSend =    0b00001110 & controlField >> 1
-        } else if controlField & 0b11 == 0b01 {
-            frameType = .S
-            nextReceive = 0b11100000 & controlField >> 5
-            guard let tryCommand = Command.init(rawValue: (controlField & 0b00001100) >> 2) else {
+        init?(fromRaw frameData: Data, modulo: Modulo = .Eight) {
+            guard let controlByte = frameData.first else {
                 return nil
             }
-            command = tryCommand
-        } else {
-            frameType = .U
-            guard let tryControl = Control.init(rawValue: (controlField & 0b11101100)) else {
-                return nil
+            
+            // in the nodejs ax25 library: https://github.com/echicken/node-ax25/blob/e2f957c0067d83fda7af826ff7e650187c3eb892/Packet.js#L373
+            // it just & with the frametype enum and sees if it's a match. there's probably a way to do that with switch/case, otherwise I can just if elseif elsif
+            // then I'm not hardcoding the binary in here, which I think is probably good, leave that in the enum definition
+            switch controlByte {
+            case let _ where _ & FrameType.U == FrameType.U:
+                self.init(SFrame: frameData, modulo: modulo)
+            case let _ where _ & FrameType.S == FrameType.S:
+                self.init(UFrame: frameData)
+            default:
+                self.init(IFrame: frameData, modulo: modulo)
             }
-            control = tryControl
         }
         
-        pollFinal = (0b00010000 & controlField >> 4) == 0b00000001
+        private init?(UFrame frameData: Data) {
+            frameType = .U
+            guard let controlField: UInt8 = frameData.first else {
+                // in theory we've already done this, but just gonna guard
+                return nil
+            }
+            pollFinal = (controlField & 0b00010000) == 0b00010000
+            // TODO: more parsing here, but we'll just stuff it all into remainder for now
+            // even if there's not supposed to be any more data. just TODO for now.
+            remainder = frameData.suffix(from: frameData.startIndex + 1)
+        }
         
-        offset += 1
+        private init?(IFrame frameData: Data, modulo: Modulo = .Eight) {
+            frameType = .I
+            switch modulo {
+            case .Eight:
+                guard let controlField: UInt8 = frameData.first else {
+                    // in theory we've already done this, but just gonna guard
+                    return nil
+                }
+                nextReceive = 0b11100000 & controlField >> 5
+                nextSend =    0b00001110 & controlField >> 1
+                pollFinal = controlField & 0b00010000 == 0b00010000
+                remainder = frameData.suffix(from: frameData.startIndex + 1)
+            case .OneTwentyEight:
+                let controlBytes = frameData.prefix(2)
+                guard controlBytes.count == 2 else {
+                    return nil
+                }
+                let controlField: UInt16 = UInt16(controlBytes[controlBytes.startIndex]) & (UInt16(controlBytes[controlBytes.endIndex]) << 8)
+                nextReceive = UInt8(truncatingIfNeeded: (controlField & 0b1111111000000000) >> 9)
+                nextSend = UInt8(truncatingIfNeeded: (controlField & 0b0000000011111110) >> 1)
+                pollFinal = controlField & 0b0000000100000000 == 0b0000000100000000
+                remainder = frameData.suffix(from: frameData.startIndex + 2)
+            }
+            
+        }
         
-        switch (frameType, control) {
-        case (.I, _), (.U, .UI?):
-            guard offset < frameData.endIndex else {
-                return nil
-            }
-            protocolId = frameData[offset]
-            information = frameData.suffix(from: offset + 1)
-        case (.U, .XID?):
-            information = frameData.suffix(from: offset)
-            // TODO: further parse this
-        case (.U, .TEST?):
-            information = frameData.suffix(from: offset)
-        case (.U, .FRMR?):
-            information = frameData.suffix(from: offset)
-            guard let information = information else {
-                return nil
-            }
-            guard information.count == 3 else {
-                return nil
-            }
-        default:
-            guard offset == frameData.endIndex else {
-                return nil
+        private init?(SFrame frameData: Data, modulo: Modulo = .Eight) {
+            frameType = .S
+            switch modulo {
+            case .Eight:
+                guard let controlField: UInt8 = frameData.first else {
+                    // in theory we've already done this, but just gonna guard
+                    return nil
+                }
+                guard frameData.suffix(from: frameData.startIndex + 1).count == 0 else {
+                    // there shouldn't be anything else in an S frame, so for now I'm gonna bail out?
+                    return nil
+                }
+                
+                frameNumber = (controlField & 0b11100000) >> 5
+                control = Control(rawValue: (controlField & 0b1100) >> 2)
+                pollFinal = controlField & 0b00010000 == 0b00010000
+            case .OneTwentyEight:
+                let controlBytes = frameData.prefix(2)
+                guard controlBytes.count == 2 else {
+                    return nil
+                }
+                guard frameData.suffix(from: frameData.startIndex + 2).count == 0 else {
+                    // there shouldn't be anything else in an S frame, so for now I'm gonna bail out?
+                    return nil
+                }
+
+                let controlField: UInt16 = UInt16(controlBytes[controlBytes.startIndex]) & (UInt16(controlBytes[controlBytes.endIndex]) << 8)
+                frameNumber = UInt8(truncatingIfNeeded: (controlField & 0b1111111000000000) >> 9)
+                control = Control(rawValue: UInt8(truncatingIfNeeded: (controlField & 0b1100) >> 2))
+                pollFinal = controlField & 0b0000000100000000 == 0b0000000100000000
             }
         }
     }
+
 
     private struct CallSignField {
         let callSignSSID: CallSignSSID

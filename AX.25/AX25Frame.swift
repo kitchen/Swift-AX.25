@@ -43,8 +43,8 @@ public class AX25Frame {
     // TODO: figure out how to make these required based on frame type. something something polymorphism?
     public var command: Command?
     public var control: Control?
-//    public let commandFrame: Bool
-//    public let responseFrame: Bool
+    public let commandFrame: Bool
+    public let responseFrame: Bool
     
     public var nextReceive: UInt8?
     public var nextSend: UInt8?
@@ -60,10 +60,9 @@ public class AX25Frame {
         guard frameData.count >= 15 else { // possibly not an ax25 frame? minimum frame size is 15 (without flag fields
             return nil
         }
-        var offset = 0
-        let frameSize = frameData.count
-        
-        // callsign fields. 2 or more, depending on number of repeaters the packet has passed through
+        var offset = frameData.startIndex
+
+        // callsign fields. 2 or more, depending on number of repeaters the packet has passed through (or is supposed to pass through?)
         // To, From, Repeaters?...
         // from the spec:
         // This address sequence provides the receivers of frames time to check the destination address subfield to see if the frame is addressed to them while the rest of the frame is being received
@@ -75,13 +74,15 @@ public class AX25Frame {
         
         var callSignFields: [CallSignField] = []
         while true {
-            guard offset + 7 < frameSize else {
+            guard offset + 7 < frameData.endIndex else {
                 // we ran out of frame before we finished parsing
                 return nil
             }
             
             // TODO: de-static-ify this? or is that fine? Or should CallSignField just take this as an initializer
-            let callSignField = CallSignField(frameData.subdata(in: ((0+offset)..<(7 + offset))))
+            guard let callSignField = CallSignField(frameData[(offset)..<(7+offset)]) else {
+                return nil
+            }
             callSignFields.append(callSignField)
             offset += 7
             // address extension bit is set to 1 on the last callsign field
@@ -90,15 +91,27 @@ public class AX25Frame {
             }
         }
         
-        toCall = callSignFields[0].callSignSSID
-        fromCall = callSignFields[1].callSignSSID
+        let toField = callSignFields[0]
+        let fromField = callSignFields[1]
+        
+        switch (toField.sevenBit, fromField.sevenBit) {
+        case (true, false), (false, false):
+            commandFrame = true
+            responseFrame = false
+        case (false, true), (true, true):
+            commandFrame = false
+            responseFrame = true
+        }
+
+        toCall = toField.callSignSSID
+        fromCall = fromField.callSignSSID
         
         let repeaterFields = Array(callSignFields.suffix(from: 2))
         repeaters = repeaterFields.map({ $0.callSignSSID })
         repeatedBy = repeaterFields.filter({ $0.sevenBit }).map({ $0.callSignSSID })
         
         
-        guard offset < frameSize else {
+        guard offset < frameData.endIndex else {
             // we ran out of frame before we finished parsing
             return nil
         }
@@ -131,7 +144,7 @@ public class AX25Frame {
         
         switch (frameType, control) {
         case (.I, _), (.U, .UI?):
-            guard offset < frameData.count else {
+            guard offset < frameData.endIndex else {
                 return nil
             }
             protocolId = frameData[offset]
@@ -150,11 +163,10 @@ public class AX25Frame {
                 return nil
             }
         default:
-            guard offset == frameData.count else {
+            guard offset == frameData.endIndex else {
                 return nil
             }
         }
-
     }
 
     private struct CallSignField {
@@ -162,10 +174,18 @@ public class AX25Frame {
         let sevenBit: Bool
         let extensionBit: Bool
         
-        init(_ bytes: Data) {
-            callSignSSID = CallSignSSID(bytes)
-            sevenBit = (bytes[6] & 0b10000000 == 0b10000000)
-            extensionBit = (bytes[6] & 0b1 == 0b1)
+        init?(_ bytes: Data) {
+            guard let callSignSSID = CallSignSSID(bytes) else {
+                return nil
+            }
+            self.callSignSSID = callSignSSID
+
+            guard let last = bytes.last else {
+                return nil
+            }
+
+            sevenBit = (last & 0b10000000 == 0b10000000)
+            extensionBit = (last & 0b1 == 0b1)
         }
         
         func field() -> Data {

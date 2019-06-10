@@ -8,7 +8,7 @@
 
 import Foundation
 
-public class AX25Frame {
+public struct AX25Frame {
     public enum FrameType {
         case I
         case S

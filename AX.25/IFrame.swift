@@ -11,7 +11,8 @@ import Foundation
 struct IFrame: AX25Frame {
     let toCall: CallSignSSID
     let fromCall: CallSignSSID
-    let repeaters: [CallSignSSID]
-    let repeatedBy: [CallSignSSID]
+    let repeaters: Set<CallSignSSID>
+    let repeatedBy: Set<CallSignSSID>
     let modulo: Modulo
+    let commandResponse: CommandResponse
 }

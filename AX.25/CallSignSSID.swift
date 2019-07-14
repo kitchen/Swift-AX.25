@@ -8,7 +8,7 @@
 
 import Foundation
 
-struct CallSignSSID: Equatable {
+struct CallSignSSID: Equatable, Hashable {
     let CallSign: String
     let SSID: UInt8 // UInt4 if I end up pulling in that library, perhaps
 

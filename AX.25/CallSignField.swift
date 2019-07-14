@@ -12,7 +12,7 @@ struct CallSignField {
     let callSignSSID: CallSignSSID
     let sevenBit: Bool
     let extensionBit: Bool
-    
+
     init?(_ bytes: Data) {
         guard let callSignSSID = CallSignSSID(bytes) else {
             return nil

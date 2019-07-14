@@ -12,21 +12,63 @@ import Foundation
 protocol AX25Frame {
     var toCall: CallSignSSID { get }
     var fromCall: CallSignSSID { get }
-    var repeaters: [CallSignSSID] { get }
-    var repeatedBy: [CallSignSSID] { get }
+    var repeaters: Set<CallSignSSID> { get }
+    var repeatedBy: Set<CallSignSSID> { get }
+    var commandResponse: CommandResponse { get }
+    
+    // func asBytes()
 }
 
 enum Modulo {
     case Eight, OneTwentyEight
 }
 
-func ParseFrame(from bytes: Data, withModulo modulo: Modulo) {
+enum CommandResponse {
+    case Command, Response
+}
+
+enum Errors: Error {
+    case Frame(number: UInt8, outOfBoundsFor: Modulo)
+    case Repeaters(repeaters: Set<CallSignSSID>, notSuperSetOf: Set<CallSignSSID>)
+    case ParseError(parsing: String)
+}
+
+
+func GetFrame() throws -> AX25Frame {
+    return try SFrame(function: .RR, nextReceive: 6, toCall: CallSignSSID(callSign: "K1CHN", ssid: 4)!, fromCall: CallSignSSID(callSign: "KU0L", ssid: 2)!, commandResponse: .Command, pollFinal: true)
+
+}
+func ParseFrame(from bytes: Data, withModulo modulo: Modulo) throws -> AX25Frame {
     
-    
+    return try SFrame(function: .RR, nextReceive: 6, toCall: CallSignSSID(callSign: "K1CHN", ssid: 4)!, fromCall: CallSignSSID(callSign: "KU0L", ssid: 2)!, commandResponse: .Command, pollFinal: true)
 }
 
 
 
+func getControlField(from data: Data, with modulo: Modulo) throws -> UInt16 {
+    switch modulo {
+    case .Eight:
+        guard let byte = data.first else {
+            throw Errors.ParseError(parsing: "modulo 8 control field")
+        }
+        return UInt16(byte)
+    case .OneTwentyEight:
+        guard data.count >= 2 else {
+            throw Errors.ParseError(parsing: "modulo 128 control field")
+        }
+        let controlBytes = data.prefix(2)
+        guard controlBytes.count == 2 else {
+            throw Errors.ParseError(parsing: "modulo 128 control field")
+        }
+        print("controlBytes: \(controlBytes)")
+        print("startindex: \(controlBytes.startIndex) (controlBytes[controlBytes.startIndex])")
+        print("endIndex: \(controlBytes.endIndex) (controlBytes[controlBytes.endIndex])")
+
+
+        let controlField: UInt16 = UInt16(controlBytes[controlBytes.startIndex]) | (UInt16(controlBytes[controlBytes.startIndex + 1]) << 8)
+        return controlField
+    }
+}
 
 
 //struct Frame: AX25Frame {

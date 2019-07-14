@@ -1,15 +1,31 @@
-////
-////  AX25FrameTests.swift
-////  AX.25Tests
-////
-////  Created by Jeremy Kitchen on 5/26/19.
-////  Copyright © 2019 Jeremy Kitchen. All rights reserved.
-////
 //
-//import XCTest
-//@testable import AX_25
+//  AX25FrameTests.swift
+//  AX.25Tests
 //
-//class AX25FrameTests: XCTestCase {
+//  Created by Jeremy Kitchen on 5/26/19.
+//  Copyright © 2019 Jeremy Kitchen. All rights reserved.
+//
+
+import XCTest
+@testable import AX_25
+
+class AX25FrameTests: XCTestCase {
+    
+    func testGetControlField() {
+        XCTAssertThrowsError(try getControlField(from: Data([]), with: .Eight))
+        XCTAssertNoThrow(try getControlField(from: Data([0x42]), with: .Eight))
+        XCTAssertNoThrow(try getControlField(from: Data([0x42, 0x42, 0x42, 0x42, 0x42]), with: .Eight))
+
+        XCTAssertThrowsError(try getControlField(from: Data([0x42]), with: .OneTwentyEight))
+        XCTAssertNoThrow(try getControlField(from: Data([0x42, 0x42]), with: .OneTwentyEight))
+        XCTAssertNoThrow(try getControlField(from: Data([0x42, 0x42, 0x42, 0x42, 0x42]), with: .OneTwentyEight))
+
+
+    }
+    
+    func testParseFrame() {
+        let frame: AX25Frame = try! ParseFrame(from: Data([]), withModulo: Modulo.Eight)
+    }
 //    func testParseSABMFrame() {
 //        let frameData = Data([0xae, 0x6e, 0x98, 0xa8, 0x40, 0x40, 0xf4, 0x96, 0x62, 0x86, 0x90, 0x9c, 0x40, 0x61, 0x3f])
 //        let frame = AX25Frame(frameData)
@@ -114,4 +130,4 @@
 //            XCTAssertEqual(AX25Frame.FrameType.U, frame.frameType)
 //        }
 //    }
-//}
+}

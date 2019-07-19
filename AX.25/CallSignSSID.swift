@@ -8,31 +8,49 @@
 
 import Foundation
 
-public struct CallSignSSID: Equatable {
-    let CallSign: String
-    let SSID: UInt8 // UInt4 if I end up pulling in that library, perhaps
+let ValidCallSignCharacters = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 
-    public init?(_ bytes: Data) {
-        guard bytes.count == 7 else {
-            return nil
-        }
-
-        let callSignBytes = bytes[bytes.startIndex..<(bytes.endIndex - 1)]
-        CallSign = String(bytes: callSignBytes.map({ $0 >> 1 }), encoding: String.Encoding.ascii)!.replacingOccurrences(of: " ", with: "")
-        SSID = (0b00011110 & bytes[bytes.endIndex - 1]) >> 1
+struct CallSignSSID: Encodable, CustomStringConvertible {
+    enum Error: Swift.Error {
+        case ssidTooHigh(ssid: UInt8)
+        case callSignTooLong(callSign: String)
+        case callSignInvalidCharacters(callSign: String)
     }
     
-    public init?(callSign CallSign: String, ssid SSID: UInt8) {
-        guard SSID <= 15 else {
-            return nil
-        }
-        self.CallSign = CallSign
-        self.SSID = SSID
-    }
+    let callSign: String
+    let ssid: UInt8
+    var description: String { return "\(callSign)-\(ssid)" }
     
-    public func field() -> Data {
-        var bytes = CallSign.padding(toLength: 6, withPad: " ", startingAt: 0).data(using: .ascii)!.map({ $0 << 1 })
-        bytes.append(SSID << 1)
-        return Data(bytes)
+    init(callSign: String, ssid: UInt8) throws {
+        self.callSign = callSign.uppercased()
+        self.ssid = ssid
+        
+        guard ssid < 16 else {
+            throw Error.ssidTooHigh(ssid: ssid)
+        }
+        
+        guard callSign.count <= 6 else {
+            throw Error.callSignTooLong(callSign: callSign)
+        }
+        
+        guard ValidCallSignCharacters.isSuperset(of: CharacterSet(charactersIn: callSign.uppercased())) else {
+            throw Error.callSignInvalidCharacters(callSign: callSign)
+        }
+    }
+}
+
+extension CallSignSSID: Decodable {
+    // yes, all of this so I can call the validation stuff on init. Weird.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let callSign = try container.decode(String.self, forKey: .callSign)
+        let ssid = try container.decode(UInt8.self, forKey: .ssid)
+        try self.init(callSign: callSign, ssid: ssid)
+    }
+}
+
+extension CallSignSSID: Equatable {
+    public static func == (lhs: CallSignSSID, rhs: CallSignSSID) -> Bool {
+        return lhs.callSign == rhs.callSign && lhs.ssid == rhs.ssid
     }
 }

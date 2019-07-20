@@ -6,21 +6,21 @@
 //  Copyright © 2019 Jeremy Kitchen. All rights reserved.
 //
 
-import XCTest
 @testable import AX_25
+import XCTest
 
 class CallSignSSIDTests: XCTestCase {
     struct roundTripTestCase {
         let CallSign: String
         let SSID: UInt8
     }
-    
+
     func testInitialization() {
         XCTAssertNil(try? CallSignSSID(callSign: "K1CHN", ssid: 42), "ssid too large")
         XCTAssertNil(try? CallSignSSID(callSign: "K1ÇHN", ssid: 7), "callsign contains invalid characters")
         XCTAssertNil(try? CallSignSSID(callSign: "K1CHNNNNNNNNNNN", ssid: 4), "callsign too long")
         XCTAssertNotNil(try? CallSignSSID(callSign: "K1CHN", ssid: 4), "callsign all good")
-        
+
         let callSignSSID = try? CallSignSSID(callSign: "k1chn", ssid: 4)
         XCTAssertNotNil(callSignSSID)
         if let callSignSSID = callSignSSID {
@@ -29,8 +29,15 @@ class CallSignSSIDTests: XCTestCase {
             XCTAssertEqual("K1CHN-4", callSignSSID.description, "string representation is good")
         }
     }
-    
-    
+
+    func testHashability() {
+        var set = Set<CallSignSSID>([])
+
+        set.insert(try! CallSignSSID(callSign: "K1CHN", ssid: 7))
+        set.insert(try! CallSignSSID(callSign: "W7LT", ssid: 10))
+        XCTAssertEqual(2, set.count)
+    }
+
     // all of these tests are totally invalid now. That's fine though.
 //    func testRoundTrips() {
 //        let testCases = [

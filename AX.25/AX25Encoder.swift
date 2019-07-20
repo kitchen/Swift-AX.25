@@ -6,22 +6,22 @@
 //  Copyright © 2019 Jeremy Kitchen. All rights reserved.
 //
 
-//import Foundation
+// import Foundation
 //
-//class AX25Encoder: Encoder {
+// class AX25Encoder: Encoder {
 //    var codingPath: [CodingKey]
-//    
+//
 //    var userInfo: [CodingUserInfoKey : Any]
-//    
+//
 //    func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key : CodingKey {
 //        <#code#>
 //    }
-//    
+//
 //    func unkeyedContainer() -> UnkeyedEncodingContainer {
 //        <#code#>
 //    }
-//    
+//
 //    func singleValueContainer() -> SingleValueEncodingContainer {
 //        <#code#>
 //    }
-//}
+// }

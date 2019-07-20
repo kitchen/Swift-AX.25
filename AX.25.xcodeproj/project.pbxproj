@@ -11,6 +11,7 @@
 		7D32640E229B338A0091EA26 /* AX_25.h in Headers */ = {isa = PBXBuildFile; fileRef = 7D326400229B338A0091EA26 /* AX_25.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		7D326418229B33A60091EA26 /* AX25Frame.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D326417229B33A60091EA26 /* AX25Frame.swift */; };
 		7D32641A229B33EB0091EA26 /* AX25FrameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D326419229B33EB0091EA26 /* AX25FrameTests.swift */; };
+		7D54F7E822E2D558009B9D5E /* AX25Encoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D54F7E722E2D558009B9D5E /* AX25Encoder.swift */; };
 		7DC3EA2D229F8F75009FA094 /* CallSignSSID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DC3EA2C229F8F75009FA094 /* CallSignSSID.swift */; };
 		7DC3EA31229F8FD3009FA094 /* CallSignSSIDTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DC3EA30229F8FD3009FA094 /* CallSignSSIDTests.swift */; };
 /* End PBXBuildFile section */
@@ -33,6 +34,7 @@
 		7D32640D229B338A0091EA26 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		7D326417229B33A60091EA26 /* AX25Frame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AX25Frame.swift; sourceTree = "<group>"; };
 		7D326419229B33EB0091EA26 /* AX25FrameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AX25FrameTests.swift; sourceTree = "<group>"; };
+		7D54F7E722E2D558009B9D5E /* AX25Encoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AX25Encoder.swift; sourceTree = "<group>"; };
 		7DC3EA2C229F8F75009FA094 /* CallSignSSID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallSignSSID.swift; sourceTree = "<group>"; };
 		7DC3EA30229F8FD3009FA094 /* CallSignSSIDTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallSignSSIDTests.swift; sourceTree = "<group>"; };
 		7DC3EA32229F94E2009FA094 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -85,6 +87,7 @@
 				7D326401229B338A0091EA26 /* Info.plist */,
 				7D326417229B33A60091EA26 /* AX25Frame.swift */,
 				7DC3EA2C229F8F75009FA094 /* CallSignSSID.swift */,
+				7D54F7E722E2D558009B9D5E /* AX25Encoder.swift */,
 			);
 			path = AX.25;
 			sourceTree = "<group>";
@@ -210,6 +213,7 @@
 			files = (
 				7D326418229B33A60091EA26 /* AX25Frame.swift in Sources */,
 				7DC3EA2D229F8F75009FA094 /* CallSignSSID.swift in Sources */,
+				7D54F7E822E2D558009B9D5E /* AX25Encoder.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

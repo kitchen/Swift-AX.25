@@ -10,7 +10,7 @@ import Foundation
 
 let ValidCallSignCharacters = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 
-struct CallSignSSID: Encodable, CustomStringConvertible {
+struct CallSignSSID: Encodable, Decodable, Equatable, CustomStringConvertible {
     enum Error: Swift.Error {
         case ssidTooHigh(ssid: UInt8)
         case callSignTooLong(callSign: String)
@@ -37,9 +37,7 @@ struct CallSignSSID: Encodable, CustomStringConvertible {
             throw Error.callSignInvalidCharacters(callSign: callSign)
         }
     }
-}
-
-extension CallSignSSID: Decodable {
+    
     // yes, all of this so I can call the validation stuff on init. Weird.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -47,9 +45,7 @@ extension CallSignSSID: Decodable {
         let ssid = try container.decode(UInt8.self, forKey: .ssid)
         try self.init(callSign: callSign, ssid: ssid)
     }
-}
-
-extension CallSignSSID: Equatable {
+    
     public static func == (lhs: CallSignSSID, rhs: CallSignSSID) -> Bool {
         return lhs.callSign == rhs.callSign && lhs.ssid == rhs.ssid
     }
